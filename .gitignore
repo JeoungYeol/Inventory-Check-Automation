@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 개인 환경 설정
+config.py
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+
+# 실제 재고 데이터 및 결과 파일
+*.xlsx
+*.xls
