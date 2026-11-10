@@ -1,135 +1,162 @@
-# Inventory Check Automation
+Inventory Check Automation
 
-Python을 활용한 실물 재고조사 및 시리얼 번호 비교 자동화 프로그램
+Python을 활용한 실물 재고조사 및 시리얼 번호(SN) 대조 자동화 프로그램
 
-## 1. 프로젝트 소개
+시스템에 등록된 재고(Board List)와 바코드로 스캔한 실물 SN을 자동으로 대조하고, 결과를 Excel 보고서로 생성합니다.
 
-### 개발 배경
+1. 프로젝트 소개
+개발 배경
 
-기존 재고조사 업무에서는 제품별 Board List와 실제 보유 제품의 Serial Number(SN)를 수작업으로 대조하여 재고 현황을 확인해야 했습니다.
+기존 재고조사는 제품별 Board List와 실제 보유 제품의 Serial Number(SN)를 수작업으로 대조해야 했습니다. 제품군과 용량에 따라 확인할 데이터가 많아 반복 비교가 발생했고, 재고 상태를 분류하고 결과를 정리하는 데도 시간이 소요되었습니다.
 
-제품군과 용량에 따라 확인해야 할 데이터가 많아 반복적인 비교 작업이 발생했으며, 재고 상태를 분류하고 조사 결과를 정리하는 과정에서도 시간이 소요되었습니다.
+이 반복 업무를 줄이기 위해 Board List와 실물 SN을 자동으로 비교하고, 결과를 Excel 보고서로 생성하는 프로그램을 개발했습니다.
 
-이러한 반복 업무를 개선하기 위해 Python과 Excel을 연동하여 Board List와 실물 SN 데이터를 자동으로 비교하고, 재고조사 결과를 Excel 보고서로 생성하는 프로그램을 개발했습니다.
+개발 목적
+반복적인 SN 대조 작업 자동화
+제품군 및 용량별 재고 현황 분류
+재고조사 결과의 Excel 보고서 자동 생성
+수작업 대조 시 발생할 수 있는 누락 및 확인 오류 감소
+적용 효과
+항목	기존	개선 후
+대조 방식	수작업 비교	프로그램 자동 대조
+결과 정리	직접 작성	Excel 보고서 자동 생성
+소요 시간	[N시간]	[N분]
+조사 대상 규모	-	제품군 [N]종, 약 [N]개
 
-### 개발 목적
+위 [ ] 항목은 실제 수치로 교체하세요. 측정하지 않았다면 이 표에서 소요 시간과 규모 행은 삭제하는 편이 낫습니다.
 
-- 반복적인 시리얼 번호 대조 작업 자동화
-- 제품군 및 용량별 재고 현황 분류
-- 재고조사 결과의 Excel 보고서 자동 생성
-- 수작업으로 발생할 수 있는 누락 및 확인 오류 감소
+2. 주요 기능
+기능	설명
+Board List 파싱	HTML 형식으로 제공되는 XLS 파일의 테이블 데이터 추출
+실물 SN 양식 생성	Board List의 용량 기준으로 입력용 Excel 파일 자동 생성
+SN 대조	Board List와 실물 SN을 비교해 일치 여부 확인
+재고 상태 분류	정상, 미확인, 출고 누락, 미등록 재고 4가지로 분류
+결과 보고서 생성	요약 시트와 분류별 상세 시트를 포함한 Excel 보고서 생성
+3. 분류 기준
 
-## 2. 주요 기능
+Board List의 Status와 실물 스캔 여부의 조합으로 판단합니다.
 
-| 기능 | 설명 |
-|---|---|
-| Board List 데이터 파싱 | HTML 형식으로 제공되는 XLS 파일의 테이블 데이터 추출 |
-| 실물 SN 양식 생성 | Board List의 제품 용량을 기준으로 입력용 Excel 파일 자동 생성 |
-| SN 데이터 비교 | Board List와 실물 SN 데이터를 비교하여 일치 여부 확인 |
-| 재고 상태 분류 | 정상, 미확인, 출고 누락 의심, 미등록 재고로 분류 |
-| 결과 보고서 생성 | 조사 결과와 요약 정보를 포함한 Excel 보고서 생성 |
+분류	Board List 상태	실물 스캔	의미
+정상	출고 아님	있음	시스템 기록과 실물이 일치
+미확인	출고 아님	없음	시스템에는 보유로 되어 있으나 실물이 확인되지 않음
+출고 누락 의심	출고	있음	출고 처리되었으나 실물이 남아 있음
+미등록 재고	목록에 없음	있음	시스템에 등록되지 않은 실물
+출고 처리되었고 실물도 없는 건은 정상 출고로 보고 보고서에서 제외합니다.
+분류는 용량(Size)별로 각각 수행합니다.
+SN은 앞뒤 공백 제거 및 대문자 변환으로 정규화한 뒤 비교합니다.
+4. 전체 동작 과정
+Board List (XLS)
+      │
+      ▼
+make_sn_template.py ──▶ 실물 SN 입력 양식 (용량별 시트)
+                              │
+                              ▼
+                      바코드 스캔 및 입력
+                              │
+                              ▼
+inventory_check.py ◀── Board List + 실물 SN
+      │
+      ▼
+Board List와 실물 SN 비교 → 재고 상태 분류
+      │
+      ▼
+Excel 결과 보고서 생성
+5. 핵심 구현 내용
+① HTML 위장 XLS 처리
 
-## 3. 전체 동작 과정
+Board List 파일은 확장자가 .xls이지만 실제로는 HTML 테이블이라 pandas.read_excel로 읽히지 않았습니다. BeautifulSoup으로 <table>을 직접 파싱하고 DataFrame으로 변환해 해결했습니다.
 
-```text
-       Board List 파일
-              │
-              ▼
-    make_sn_template.py
-              │
-              ▼
-      실물 SN 입력 양식 생성
-              │
-              ▼
-       바코드 스캔 및 입력
-              │
-              ▼
-      inventory_check.py
-              │
-              ▼
-      Board List와 실물 SN 비교
-              │
-              ▼
-         재고 상태 분류
-              │
-              ▼
-       Excel 결과 보고서 생성
-```
-
-## 4. 핵심 구현 내용
-
-### ① Excel 및 HTML 데이터 처리
-
-- BeautifulSoup을 활용하여 HTML 형식의 XLS 파일에서 테이블 데이터 추출
-- Pandas DataFrame을 활용하여 제품 및 시리얼 번호 데이터 처리
-- 제품 용량별 데이터를 구분하여 재고조사에 필요한 입력 양식 생성
-
-### ② 시리얼 번호 비교 로직
-
-- 문자열 앞뒤 공백 제거 및 대문자 변환을 통한 데이터 정규화
-- Python Set 자료형을 활용하여 Board List와 실물 SN 데이터 비교
-- 데이터의 존재 여부와 출고 상태를 기준으로 재고 유형 분류
-
-### ③ Excel 보고서 자동 생성
-
-- OpenPyXL을 활용하여 조사 결과 Excel 파일 생성
-- 재고 상태별 데이터 시트 구성
-- 요약 시트에 전체 조사 건수 및 분류별 결과 표시
-- 셀 색상, 테두리, 정렬 등 보고서 서식 자동 적용
-
-## 5. 기술 스택
-
-| 구분 | 기술 |
-|---|---|
-| Language | Python |
-| Data Processing | Pandas |
-| HTML Parsing | BeautifulSoup4 |
-| Excel Processing | OpenPyXL |
-| Data Comparison | Python Set |
-
-## 6. 프로젝트 구조
-
-```text
+② SN 대조 로직
+공백 제거와 대문자 변환으로 입력 형식 차이에 의한 오탐 방지
+Python set의 교집합과 차집합으로 대조
+출고 상태와 스캔 여부를 조합해 재고 유형 분류
+③ Excel 보고서 자동 생성
+OpenPyXL로 요약 시트 1개와 용량별 분류 시트(정상, 미확인, 출고 누락, 미등록) 생성
+분류별 색상, 테두리, 정렬 서식 자동 적용
+분기가 바뀌면 config.py의 연도, 분기, 경로만 수정해 재사용
+6. 기술 스택
+구분	기술
+Language	Python 3
+Data Processing	Pandas
+HTML Parsing	BeautifulSoup4
+Excel Processing	OpenPyXL
+Data Comparison	Python set
+7. 프로젝트 구조
 Inventory-Check-Automation/
-│
-├── config.example.py
-├── inventory_check.py
-├── make_sn_template.py
+├── config.example.py       # 설정 예시
+├── inventory_check.py      # SN 대조, 분류, 보고서 생성
+├── make_sn_template.py     # 실물 SN 입력 양식 생성
 ├── requirements.txt
 ├── .gitignore
 └── README.md
-```
-
-| 파일명 | 역할 |
-|---|---|
-| config.example.py | 조사 기간, 데이터 경로, 제품군 및 상태 설정 예시 |
-| make_sn_template.py | Board List 기반 실물 SN 입력 양식 생성 |
-| inventory_check.py | SN 비교, 재고 분류 및 결과 보고서 생성 |
-| requirements.txt | 프로젝트 실행에 필요한 라이브러리 목록 |
-
-## 7. 실행 방법
-
-### 1) 저장소 복제
-
-```bash
+데이터 폴더 구조 (config.py의 ROOT_PATH 기준)
+{ROOT_PATH}/
+└── {YEAR}/
+    └── {QUARTER}/
+        └── {제품군}/
+            ├── board_list/
+            │   └── board_xxx.xls      # 직접 넣는 파일
+            ├── 실물SN_{제품군}.xlsx     # make_sn_template.py가 생성
+            └── 재고조사_{제품군}.xlsx   # inventory_check.py가 생성
+입력 파일 규칙
+Board List에는 Serial, Board ID, Size, Status 컬럼이 필요합니다.
+실물 SN 파일은 시트 이름이 Board List의 Size 값과 같아야 매칭됩니다. 템플릿으로 생성하면 자동으로 맞춰집니다.
+SN은 각 시트 A열에 입력합니다. 4행이 헤더이며 5행부터 읽습니다.
+8. 실행 방법
+1) 저장소 복제 및 라이브러리 설치
+bash
 git clone 저장소_URL
-```
-
-### 2) 라이브러리 설치
-
-```bash
+cd Inventory-Check-Automation
 pip install -r requirements.txt
-```
+2) 환경 설정
 
-### 3) 환경 설정
+config.example.py를 복사해 config.py로 이름을 바꾸고 다음을 설정합니다.
 
-`config.example.py`를 복사하여 `config.py`로 변경합니다.
+조사 연도 및 분기 (YEAR, QUARTER)
+데이터 저장 경로 (ROOT_PATH)
+제품군별 Board List 파일명 (PRODUCT_GROUPS)
+재고 상태 분류 기준 (STATUS_SHIPPED)
+3) Board List 배치
 
-실제 사용 환경에 맞게 다음 항목을 설정합니다.
+각 제품군의 board_list/ 폴더에 Board List 파일을 넣습니다.
 
-- 조사 연도 및 분기
-- 재고조사 데이터 저장 경로
-- 제품군별 Board List 파일 경로
-- 재고 상태 분류 기준
+4) 실물 SN 입력 양식 생성
+bash
+python make_sn_template.py
 
-### 
+제품군 폴더에 실물SN_{제품군}.xlsx가 생성됩니다. 용량별 시트에 바코드 스캐너로 SN을 입력합니다. 중복 스캔은 허용되며 집합으로 처리됩니다.
+
+5) 재고 대조 실행
+bash
+python inventory_check.py
+
+제품군 폴더에 재고조사_{제품군}.xlsx가 생성됩니다.
+
+9. 실행 결과 예시
+
+실제 데이터는 올리지 말고, 가상의 SN으로 만든 샘플 결과 스크린샷을 넣으세요.
+
+요약 시트 예시
+
+용량/모델	정상	미확인	출고누락	유령재고	실물합계
+(샘플)	-	-	-	-	-
+10. 개발 기여 및 AI 활용
+재고조사 업무 흐름 분석 및 자동화 대상 선정
+분류 기준 정의 (Board List 상태와 실물 스캔 여부의 조합)
+입력 양식, 대조, 보고서 생성 단계로 구성한 프로그램 흐름 설계
+실제 데이터로 실행하며 오류를 재현하고 수정 방향 검토
+
+AI 도구를 개발 보조 수단으로 활용했으며, 생성된 코드의 실행 결과를 확인하고 테스트 및 수정 방향을 검토하는 방식으로 개발했습니다.
+
+11. 한계 및 개선 과제
+
+현재 버전에서 확인한 한계와 개선 방향입니다.
+
+구분	한계	개선 방향
+상태 판정	출고 여부를 문자열 정확 일치로 비교해 표기 차이(공백 등)에 취약. 출고가 아닌 모든 상태를 보유로 간주해 폐기, 반품 등도 보유로 처리됨	상태값 정규화, 보유 상태를 명시적으로 화이트리스트 검증, 정의되지 않은 상태는 별도 분류
+미등록 재고 판정	용량별로 계산하므로 다른 용량 시트에 잘못 입력한 SN이 미등록으로 분류될 수 있음	제품군 전체 Board List 기준으로 먼저 판정 후 용량 불일치는 별도 안내
+입력 검증	필수 컬럼이 없으면 오류로 중단, 시트 헤더 위치가 4행으로 고정	필수 컬럼 사전 검증과 안내 메시지, 헤더 위치 자동 탐색
+입력 양식	시트당 입력 행이 200행으로 고정	용량별 Board List 수량에 맞춰 행 수 동적 생성
+중복 스캔	집합 처리로 중복 스캔 SN을 알 수 없음	중복 스캔 건수 리포트 추가
+코드 구조	XLS 파싱 로직이 두 파일에 중복	공통 모듈로 분리
+테스트	자동화 테스트 없음	샘플 데이터 기반 분류 로직 단위 테스트 작성
